@@ -1,0 +1,2 @@
+find /home/user/projects/RDN-Yao -type f -name "*Identifier*" -delete
+find . -type f -name "*Identifier*" -delete

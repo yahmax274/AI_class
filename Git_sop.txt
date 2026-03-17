@@ -62,8 +62,9 @@ git config user.email "yahmax274@gmail.com"
 git init
 git add .
 git commit -m "Initial commit"
+git branch -M main
 git remote add origin https://github.com/yourname/my-project.git
-git push -u main
+git push -u origin main
 
 -------------
 忽略資料
