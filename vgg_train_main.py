@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from torchvision import transforms
 
 
@@ -120,6 +120,7 @@ class VGG16_BN_CIFAR10(nn.Module):
             nn.Flatten(),
             nn.Linear(512, 256),
             nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
             nn.Linear(256, num_classes)
         )
 
@@ -304,9 +305,10 @@ def plot_curves(train_loss_list, train_acc_list, test_loss_list, test_acc_list, 
     plt.legend()
 
     plt.tight_layout()
-    # plt.show()
-    plt.savefig("vgg16_bn_overfit_curve.png", dpi=200, bbox_inches="tight")
-    print("曲線圖已儲存為 vgg16_bn_overfit_curve.png")    
+    save_name = f"{title_prefix.lower()}_curve.png"
+    plt.savefig(save_name, dpi=200, bbox_inches="tight")
+    print(f"曲線圖已儲存為 {save_name}")
+    plt.close()
 
 
 # =========================================================
@@ -321,12 +323,8 @@ if __name__ == "__main__":
     num_workers = 0          # WSL 建議先用 0
     num_classes = 10
 
-    # 先做小資料 overfit 測試
-    OVERFIT_DEBUG = True
-    OVERFIT_SAMPLES = 256
-
     # 訓練 epoch
-    NUM_EPOCHS = 80
+    NUM_EPOCHS = 100
 
     # 使用裝置
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -353,6 +351,17 @@ if __name__ == "__main__":
     # Transform
     # -----------------------------
     train_transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=(0.4914, 0.4822, 0.4465),
+            std=(0.2023, 0.1994, 0.2010)
+        )
+    ])
+
+    test_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(
             mean=(0.4914, 0.4822, 0.4465),
@@ -368,20 +377,11 @@ if __name__ == "__main__":
         labels=train_labels,
         transform=train_transform
     )
-
-    test_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(
-            mean=(0.4914, 0.4822, 0.4465),
-            std=(0.2023, 0.1994, 0.2010)
-        )
-    ])
-
-    # overfit debug: 只取少量訓練資料
-    if OVERFIT_DEBUG:
-        print(f"\n[Overfit Debug Mode] 只使用 {OVERFIT_SAMPLES} 張訓練圖片")
-        subset_indices = torch.randperm(len(train_dataset))[:OVERFIT_SAMPLES]
-        train_dataset = Subset(train_dataset, subset_indices)
+    test_dataset = CIFAR10ArrayDataset(
+        images=test_images,
+        labels=test_labels,
+        transform=test_transform
+    )
 
     # -----------------------------
     # DataLoader
@@ -422,7 +422,7 @@ if __name__ == "__main__":
         model.parameters(),
         lr=0.01,
         momentum=0.9,
-        weight_decay=0.0
+        weight_decay=5e-4
     )
 
     scheduler = optim.lr_scheduler.StepLR(
@@ -470,6 +470,8 @@ if __name__ == "__main__":
 
         if test_acc > best_test_acc:
             best_test_acc = test_acc
+            torch.save(model.state_dict(), "best_vgg16_bn_cifar10.pth")
+            print("已儲存最佳模型: best_vgg16_bn_cifar10.pth")
 
         print(f"Epoch [{epoch+1}/{NUM_EPOCHS}] | lr={current_lr:.6f}")
         print(f"  Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}, Time: {train_time:.2f}s")
@@ -478,11 +480,10 @@ if __name__ == "__main__":
     # -----------------------------
     # 畫圖
     # -----------------------------
-    title_prefix = "VGG16_BN_OVERFIT" if OVERFIT_DEBUG else "VGG16_BN"
     plot_curves(
         train_loss_list=train_loss_list,
         train_acc_list=train_acc_list,
         test_loss_list=test_loss_list,
         test_acc_list=test_acc_list,
-        title_prefix=title_prefix
+        title_prefix="VGG16_BN"
     )
