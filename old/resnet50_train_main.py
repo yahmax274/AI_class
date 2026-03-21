@@ -292,7 +292,7 @@ if __name__ == "__main__":
                 train_acc_list=train_acc_list,
                 test_loss_list=test_loss_list,
                 test_acc_list=test_acc_list,
-                title_prefix="VGG16_BN"
+                title_prefix="ResNet50"
             )
 
         print(f"\n訓練完成，最佳測試準確率: {best_test_acc:.4f}，出現在 Epoch {best_epoch}")

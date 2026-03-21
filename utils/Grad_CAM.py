@@ -25,12 +25,6 @@ class GradCAM:
         self.gradients = grad_output[0].detach()
 
     def generate(self, input_tensor, class_idx=None):
-        """
-        input_tensor: [1, 3, H, W]
-        回傳:
-            cam: [H, W], 0~1
-            logits: [1, num_classes]
-        """
         self.model.eval()
         self.model.zero_grad()
 
@@ -39,17 +33,13 @@ class GradCAM:
         if class_idx is None:
             class_idx = int(logits.argmax(dim=1).item())
 
-        score = logits[:, class_idx]
-        score.backward(retain_graph=True)
+        score = logits[:, class_idx].sum()
+        score.backward()
 
-        # 權重 = gradient 的 global average pooling
-        weights = self.gradients.mean(dim=(2, 3), keepdim=True)  # [1, C, 1, 1]
-
-        # 加權 activation
-        cam = (weights * self.activations).sum(dim=1, keepdim=True)  # [1, 1, h, w]
+        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
+        cam = (weights * self.activations).sum(dim=1, keepdim=True)
         cam = F.relu(cam)
 
-        # 上採樣回輸入大小
         cam = F.interpolate(
             cam,
             size=input_tensor.shape[2:],
@@ -59,13 +49,12 @@ class GradCAM:
 
         cam = cam.squeeze().cpu().numpy()
 
-        # normalize 到 0~1
         cam = cam - cam.min()
         if cam.max() > 1e-8:
             cam = cam / cam.max()
 
         return cam, logits.detach()
-
+    
     def remove_hooks(self):
         self.forward_handle.remove()
         self.backward_handle.remove()
@@ -74,12 +63,23 @@ def get_gradcam_target_layer(model):
     """
     根據模型類型回傳適合的 Grad-CAM target layer
     """
+
+    # VGG OrderedDict 版本
     if hasattr(model, "features"):
-        # VGG
-        return model.features[30]
-    elif hasattr(model, "backbone") and hasattr(model.backbone, "layer4"):
-        # ResNet50
-        return model.backbone.layer4[-1].conv3
+        if hasattr(model.features, "block4_conv3"):
+            return model.features.block4_conv3
+        elif hasattr(model.features, "block5_conv3"):
+            return model.features.block5_conv3
+        else:
+            raise ValueError("VGG model 找不到 block4_conv3 / block5_conv3")
+
+    # ResNet OrderedDict / backbone 版本
+    elif hasattr(model, "backbone"):
+        if hasattr(model.backbone, "layer4"):
+            return model.backbone.layer4[-1].conv3
+        else:
+            raise ValueError("ResNet model 找不到 backbone.layer4")
+
     else:
         raise ValueError("無法辨識模型的 Grad-CAM target layer")
 
