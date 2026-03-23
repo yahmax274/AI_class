@@ -74,6 +74,9 @@ def get_gradcam_target_layer(model):
             raise ValueError("VGG model 找不到 block4_conv3 / block5_conv3")
 
     # ResNet OrderedDict / backbone 版本
+    elif hasattr(model, "layer4"):
+        return model.layer4[-1].conv3
+
     elif hasattr(model, "backbone"):
         if hasattr(model.backbone, "layer4"):
             return model.backbone.layer4[-1].conv3
