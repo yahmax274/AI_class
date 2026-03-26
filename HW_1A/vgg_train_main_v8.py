@@ -11,10 +11,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.models import resnet50
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
 from collections import OrderedDict
-
 from pathlib import Path
 from contextlib import contextmanager
 
@@ -25,62 +23,118 @@ from utils.classified_indices import find_misclassified_indices, find_correct_in
 from utils.curves_recorder import plot_curves
 
 # =========================================================
-# ResNet50 for CIFAR-10
+#  VGG16_BN for CIFAR-10
 # =========================================================
-class ResNet50_CIFAR10_Better(nn.Module):
+class VGG16_BN_CIFAR10_Better(nn.Module):
     def __init__(self, num_classes=10, dropout=0.3):
         super().__init__()
 
-        # zero_init_residual=True 通常對深層 ResNet 訓練較穩
-        base_model = resnet50(weights=None, zero_init_residual=True)
+        self.features = nn.Sequential(OrderedDict([
+            # =========================
+            # Block 1: 32 -> 16
+            # =========================
+            ("block1_conv1", nn.Conv2d(3, 64, kernel_size=3, padding=1, bias=False)),
+            ("block1_bn1", nn.BatchNorm2d(64)),
+            ("block1_relu1", nn.ReLU(inplace=True)),
 
-        # CIFAR-10 用較深的 stem，比單層 conv1 更適合小圖
-        self.stem = nn.Sequential(OrderedDict([
-            ("conv1", nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)),
-            ("bn1", nn.BatchNorm2d(64)),
-            ("relu1", nn.ReLU(inplace=True)),
+            ("block1_conv2", nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=False)),
+            ("block1_bn2", nn.BatchNorm2d(64)),
+            ("block1_relu2", nn.ReLU(inplace=True)),
 
-            ("conv2", nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)),
-            ("bn2", nn.BatchNorm2d(64)),
-            ("relu2", nn.ReLU(inplace=True)),
+            ("block1_pool", nn.MaxPool2d(kernel_size=2, stride=2)),
 
-            ("conv3", nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)),
-            ("bn3", nn.BatchNorm2d(64)),
-            ("relu3", nn.ReLU(inplace=True)),
+            # =========================
+            # Block 2: 16 -> 8
+            # =========================
+            ("block2_conv1", nn.Conv2d(64, 128, kernel_size=3, padding=1, bias=False)),
+            ("block2_bn1", nn.BatchNorm2d(128)),
+            ("block2_relu1", nn.ReLU(inplace=True)),
+
+            ("block2_conv2", nn.Conv2d(128, 128, kernel_size=3, padding=1, bias=False)),
+            ("block2_bn2", nn.BatchNorm2d(128)),
+            ("block2_relu2", nn.ReLU(inplace=True)),
+
+            ("block2_pool", nn.MaxPool2d(kernel_size=2, stride=2)),
+
+            # =========================
+            # Block 3: 8 -> 4
+            # =========================
+            ("block3_conv1", nn.Conv2d(128, 256, kernel_size=3, padding=1, bias=False)),
+            ("block3_bn1", nn.BatchNorm2d(256)),
+            ("block3_relu1", nn.ReLU(inplace=True)),
+
+            ("block3_conv2", nn.Conv2d(256, 256, kernel_size=3, padding=1, bias=False)),
+            ("block3_bn2", nn.BatchNorm2d(256)),
+            ("block3_relu2", nn.ReLU(inplace=True)),
+
+            ("block3_conv3", nn.Conv2d(256, 256, kernel_size=3, padding=1, bias=False)),
+            ("block3_bn3", nn.BatchNorm2d(256)),
+            ("block3_relu3", nn.ReLU(inplace=True)),
+
+            ("block3_pool", nn.MaxPool2d(kernel_size=2, stride=2)),
+
+            # =========================
+            # Block 4: 4 -> 2
+            # 原本 512 改成 384
+            # =========================
+            ("block4_conv1", nn.Conv2d(256, 384, kernel_size=3, padding=1, bias=False)),
+            ("block4_bn1", nn.BatchNorm2d(384)),
+            ("block4_relu1", nn.ReLU(inplace=True)),
+
+            ("block4_conv2", nn.Conv2d(384, 384, kernel_size=3, padding=1, bias=False)),
+            ("block4_bn2", nn.BatchNorm2d(384)),
+            ("block4_relu2", nn.ReLU(inplace=True)),
+
+            ("block4_conv3", nn.Conv2d(384, 384, kernel_size=3, padding=1, bias=False)),
+            ("block4_bn3", nn.BatchNorm2d(384)),
+            ("block4_relu3", nn.ReLU(inplace=True)),
+
+            ("block4_pool", nn.MaxPool2d(kernel_size=2, stride=2)),
+
+            # =========================
+            # Block 5: 2 -> 1
+            # 原本 512 改成 384
+            # =========================
+            ("block5_conv1", nn.Conv2d(384, 384, kernel_size=3, padding=1, bias=False)),
+            ("block5_bn1", nn.BatchNorm2d(384)),
+            ("block5_relu1", nn.ReLU(inplace=True)),
+
+            ("block5_conv2", nn.Conv2d(384, 384, kernel_size=3, padding=1, bias=False)),
+            ("block5_bn2", nn.BatchNorm2d(384)),
+            ("block5_relu2", nn.ReLU(inplace=True)),
+
+            ("block5_conv3", nn.Conv2d(384, 384, kernel_size=3, padding=1, bias=False)),
+            ("block5_bn3", nn.BatchNorm2d(384)),
+            ("block5_relu3", nn.ReLU(inplace=True)),
+
+            ("block5_pool", nn.MaxPool2d(kernel_size=2, stride=2)),
         ]))
 
-        # 保留 ResNet50 主幹
-        self.layer1 = base_model.layer1
-        self.layer2 = base_model.layer2
-        self.layer3 = base_model.layer3
-        self.layer4 = base_model.layer4
-
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-
-        in_features = base_model.fc.in_features  # 2048
-
-        # 比單一 fc 更強的分類頭
         self.classifier = nn.Sequential(OrderedDict([
-            ("fc1", nn.Linear(in_features, 512)),
-            ("bn_fc1", nn.BatchNorm1d(512)),
-            ("relu_fc1", nn.ReLU(inplace=True)),
+            ("flatten", nn.Flatten()),
+            ("fc1", nn.Linear(384, 256)),
+            ("relu1", nn.ReLU(inplace=True)),
             ("dropout", nn.Dropout(dropout)),
-            ("fc2", nn.Linear(512, num_classes)),
+            ("fc2", nn.Linear(256, num_classes)),
         ]))
+
+        self._initialize_weights()
 
     def forward(self, x):
-        x = self.stem(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-
+        x = self.features(x)
         x = self.classifier(x)
         return x
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1.0)
+                nn.init.constant_(m.bias, 0.0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0.0)
 
 # =========================================================
 #  訓練 / 評估
@@ -202,7 +256,8 @@ if __name__ == "__main__":
     # num_epochs = 80
 
     # 功能控制
-    DO_TRAIN = True
+    # DO_TRAIN = True
+    DO_TRAIN = False
     DO_PREDICT = True
 
     # prediction 模式
@@ -213,19 +268,19 @@ if __name__ == "__main__":
     manual_indices = [0, 1, 2, 3, 4, 5, 10, 20]
 
     # 自動找幾張錯誤分類
-    num_wrong_cases = 5
+    num_wrong_cases = 20
 
     # 每個類別要抓幾張正確分類樣本
     num_correct_per_class = 10
 
     # 輸出路徑
-    OUTPUT_ROOT = "outputs/my_resnet50_experiment/run6"
+    OUTPUT_ROOT = "outputs/my_vgg16_experiment/run6"
 
     save_dirs = prepare_output_dirs(OUTPUT_ROOT)
 
-    best_model_path = str(save_dirs["models"] / "best_resnet50_cifar10.pth")
+    best_model_path = str(save_dirs["models"] / "best_vgg16_bn_cifar10.pth")
     predict_save_dir = str(save_dirs["predictions"])
-    confusion_matrix_path = str(save_dirs["figures"] / "resnet50_confusion_matrix.png")
+    confusion_matrix_path = str(save_dirs["figures"] / "vgg16_bn_confusion_matrix.png")
     best_report_path = str(save_dirs["reports"] / "best_accuracy_report.txt")
 
     # 使用裝置
@@ -254,8 +309,8 @@ if __name__ == "__main__":
     # -----------------------------
     # 建立模型
     # -----------------------------
-    # model = ResNet50_CIFAR10(num_classes=num_classes).to(device)
-    model = ResNet50_CIFAR10_Better(num_classes=num_classes, dropout=0.3).to(device)
+    # model = VGG16_BN_CIFAR10(num_classes=num_classes).to(device)
+    model = VGG16_BN_CIFAR10_Better(num_classes=num_classes, dropout=0.3).to(device)
 
     # forward 檢查
     images, labels = next(iter(train_loader))
@@ -330,7 +385,7 @@ if __name__ == "__main__":
                 train_acc_list=train_acc_list,
                 test_loss_list=test_loss_list,
                 test_acc_list=test_acc_list,
-                title_prefix="ResNet50"
+                title_prefix="VGG16_BN"
             )
 
         save_best_accuracy_report(
@@ -352,8 +407,8 @@ if __name__ == "__main__":
         if not os.path.exists(best_model_path):
             raise FileNotFoundError(f"找不到最佳模型檔案: {best_model_path}")
 
-        # best_model = ResNet50_CIFAR10(num_classes=num_classes).to(device)
-        best_model = ResNet50_CIFAR10_Better(num_classes=num_classes, dropout=0.3).to(device)
+        # best_model = VGG16_BN_CIFAR10(num_classes=num_classes).to(device)
+        best_model = VGG16_BN_CIFAR10_Better(num_classes=num_classes, dropout=0.3).to(device)
         best_model.load_state_dict(torch.load(best_model_path, map_location=device))
         best_model.eval()
 
@@ -371,8 +426,8 @@ if __name__ == "__main__":
             y_pred=y_pred,
             class_names=label_names,
             save_path=confusion_matrix_path,
-            normalize="true",
-            title="ResNet50 CIFAR-10 Confusion Matrix"
+            normalize="true",   # 可改成 None / "true" / "pred" / "all"
+            title="VGG16_BN CIFAR-10 Confusion Matrix"
         )
 
         print_classification_report_sklearn(
