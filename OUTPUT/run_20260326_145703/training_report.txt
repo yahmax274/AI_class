@@ -1,0 +1,42 @@
+========== Training Report ==========
+Run directory          : OUTPUT/run_20260326_145703
+Dataset file           : synthetic_control.data
+Device                 : cuda
+Batch size             : 16
+Learning rate          : 0.0005
+Epochs                 : 80
+Validation ratio       : 0.2
+Weight decay           : 0.0001
+Dropout                : 0.2
+Optimizer              : Adam
+Scheduler              : StepLR(step_size=20, gamma=0.5)
+Loss function          : CrossEntropyLoss
+Normalization mean     : 30.199222
+Normalization std      : 10.555966
+Elapsed time (sec)     : 9.45
+
+========== Dataset Info ==========
+Total samples          : 600
+Sequence length        : 60
+Number of classes      : 6
+Train samples          : 288
+Validation samples     : 72
+Test samples           : 240
+
+========== Best Model ==========
+Best Validation Acc    : 1.0000
+Best Epoch             : 18
+
+========== Final Metrics ==========
+Final Train Loss       : 0.3235
+Final Train Acc        : 0.8958
+Final Validation Loss  : 0.1281
+Final Validation Acc   : 0.9722
+Final Test Loss        : 0.3449
+Final Test Acc         : 0.9333
+
+========== Model Summary ==========
+Conv1d(1,16,3,padding=1) + BN + ReLU + MaxPool1d(2)
+Conv1d(16,32,3,padding=1) + BN + ReLU + MaxPool1d(2)
+Conv1d(32,64,3,padding=1) + BN + ReLU + AdaptiveAvgPool1d(1)
+Flatten -> Linear(64,32) -> ReLU -> Dropout -> Linear(32,6)

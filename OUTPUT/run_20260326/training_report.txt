@@ -1,0 +1,35 @@
+========== Training Report ==========
+Run directory       : OUTPUT/run_20260326
+Dataset file        : synthetic_control.data
+Device              : cuda
+Batch size          : 16
+Learning rate       : 0.0005
+Epochs              : 100
+Optimizer           : Adam
+Loss function       : CrossEntropyLoss
+Normalization mean  : 30.182487
+Normalization std   : 10.540913
+Elapsed time (sec)  : 11.07
+
+========== Dataset Info ==========
+Total samples       : 600
+Sequence length     : 60
+Classes             : 6
+Train samples       : 360
+Test samples        : 240
+
+========== Best Result ==========
+Best Test Accuracy  : 0.9875
+Best Epoch          : 43
+
+========== Final Epoch Result ==========
+Final Train Loss    : 0.2441
+Final Train Acc     : 0.9306
+Final Test Loss     : 0.1173
+Final Test Acc      : 0.9875
+
+========== Model Summary ==========
+Conv1d(1,16,3,padding=1) + BN + ReLU + MaxPool1d(2)
+Conv1d(16,32,3,padding=1) + BN + ReLU + MaxPool1d(2)
+Conv1d(32,64,3,padding=1) + BN + ReLU + AdaptiveAvgPool1d(1)
+Flatten -> Linear(64,32) -> ReLU -> Dropout(0.3) -> Linear(32,6)
