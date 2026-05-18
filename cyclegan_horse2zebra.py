@@ -24,15 +24,15 @@ class Config:
     data_root: str = "./datasets/horse2zebra"
 
     # 輸出資料夾
-    output_dir: str = "./cyclegan_outputs"
-    sample_dir: str = "./cyclegan_outputs/samples"
-    checkpoint_dir: str = "./cyclegan_outputs/checkpoints"
+    output_dir: str = "./cyclegan_outputs_horse2zebra"
+    sample_dir: str = "./cyclegan_outputs_horse2zebra/samples"
+    checkpoint_dir: str = "./cyclegan_outputs_horse2zebra/checkpoints"
 
     # 訓練設定
     image_size: int = 256
-    batch_size: int = 1
-    num_epochs: int = 100
-    num_workers: int = 2
+    batch_size: int = 8
+    num_epochs: int = 200
+    num_workers: int = 4
 
     # CycleGAN 常用超參數
     lr: float = 2e-4
@@ -948,14 +948,15 @@ if __name__ == "__main__":
     # "train"：訓練 CycleGAN
     # "test" ：使用訓練好的模型產生測試圖片
     # --------------------------------------------------------
-    mode = "train"
+    # mode = "train"
+    mode = "test"
 
     if mode == "train":
         train(cfg)
 
     elif mode == "test":
         # 請改成你訓練好的 checkpoint 路徑
-        checkpoint_path = "./cyclegan_outputs/checkpoints/cyclegan_epoch_100.pth"
+        checkpoint_path = "./cyclegan_outputs_horse2zebra/checkpoints/cyclegan_epoch_200.pth"
         test(cfg, checkpoint_path)
 
     else:
