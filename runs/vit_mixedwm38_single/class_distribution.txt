@@ -1,0 +1,9 @@
+Normal: 1000
+Center: 1000
+Donut: 1000
+Edge-Loc: 1000
+Edge-Ring: 1000
+Loc: 1000
+Near-full: 149
+Random: 1000
+Scratch: 866

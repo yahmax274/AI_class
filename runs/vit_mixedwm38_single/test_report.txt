@@ -1,0 +1,23 @@
+Test Metrics
+loss: 0.07167915476536052
+accuracy: 0.9762944479101684
+precision_macro: 0.968563183890011
+recall_macro: 0.9784553628773283
+f1_macro: 0.9727810210093261
+
+Classification Report
+              precision    recall  f1-score   support
+
+      Normal     1.0000    1.0000    1.0000       200
+      Center     0.9565    0.9900    0.9730       200
+       Donut     0.9847    0.9650    0.9747       200
+    Edge-Loc     1.0000    0.9250    0.9610       200
+   Edge-Ring     0.9479    1.0000    0.9732       200
+         Loc     0.9848    0.9750    0.9799       200
+   Near-full     0.8824    1.0000    0.9375        30
+      Random     0.9608    0.9800    0.9703       200
+     Scratch     1.0000    0.9711    0.9853       173
+
+    accuracy                         0.9763      1603
+   macro avg     0.9686    0.9785    0.9728      1603
+weighted avg     0.9772    0.9763    0.9763      1603
